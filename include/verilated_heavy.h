@@ -962,4 +962,58 @@ extern IData VL_FGETS_NI(std::string& dest, IData fpi);
 extern const char* vl_dumpctl_filenamep(bool setit = false,
                                         const std::string& filename = "") VL_MT_SAFE;
 
+
+
+
+template <class T, class V>
+void updateChangelist(T& target, const V value);
+
+extern std::pair<unsigned char*, unsigned char> verilator_char_cl[10000];
+extern std::pair<unsigned char*, unsigned char>* verilator_char_cl_curr;
+
+extern std::pair<unsigned short*, unsigned short> verilator_short_cl[10000];
+extern std::pair<unsigned short*, unsigned short>* verilator_short_cl_curr;
+
+extern std::pair<unsigned int*, unsigned int> verilator_int_cl[10000];
+extern std::pair<unsigned int*, unsigned int>* verilator_int_cl_curr;
+
+extern std::pair<unsigned long*, unsigned long> verilator_long_cl[10000];
+extern std::pair<unsigned long*, unsigned long>* verilator_long_cl_curr;
+
+void flushChangelists();
+
+template<class V>
+void updateChangelist(unsigned char& target, const V value) 
+{
+    (*verilator_char_cl_curr++) = std::make_pair(&target, value);
+
+    //flushChangelists();
+}
+
+template<class V>
+void updateChangelist(unsigned short& target, const V value) 
+{
+    (*verilator_short_cl_curr++) = std::make_pair(&target, value);
+
+    //flushChangelists();
+}
+
+template<class V>
+void updateChangelist(unsigned int& target, const V value) 
+{
+    (*verilator_int_cl_curr++) = std::make_pair(&target, value);
+
+    //flushChangelists();
+}
+
+template<class V>
+void updateChangelist(unsigned long& target, const V value) 
+{
+    (*verilator_long_cl_curr++) = std::make_pair(&target, value);
+
+    //flushChangelists();
+}
+
+
+
 #endif  // Guard

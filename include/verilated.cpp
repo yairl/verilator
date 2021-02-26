@@ -2802,4 +2802,33 @@ void VerilatedAssertOneThread::fatal_different() VL_MT_SAFE {
 }
 #endif
 
+std::pair<unsigned char*, unsigned char> verilator_char_cl[10000], *verilator_char_cl_curr;
+std::pair<unsigned short*, unsigned short> verilator_short_cl[10000], *verilator_short_cl_curr;
+std::pair<unsigned int*, unsigned int> verilator_int_cl[10000], *verilator_int_cl_curr;
+std::pair<unsigned long*, unsigned long> verilator_long_cl[10000], *verilator_long_cl_curr;
+
+void
+flushChangelists()
+{
+    for (auto v = &verilator_char_cl[0]; v != verilator_char_cl_curr; v++) {
+        *(v->first) = v->second;
+    }
+    verilator_char_cl_curr = &verilator_char_cl[0];
+
+    for (auto v = &verilator_short_cl[0]; v != verilator_short_cl_curr; v++) {
+        *(v->first) = v->second;
+    }
+    verilator_short_cl_curr = &verilator_short_cl[0];
+
+    for (auto v = &verilator_int_cl[0]; v != verilator_int_cl_curr; v++) {
+        *(v->first) = v->second;
+    }
+    verilator_int_cl_curr = &verilator_int_cl[0];
+
+    for (auto v = &verilator_long_cl[0]; v != verilator_long_cl_curr; v++) {
+        *(v->first) = v->second;
+    }
+    verilator_long_cl_curr = &verilator_long_cl[0];
+}
+
 //===========================================================================

@@ -143,7 +143,7 @@ public:
                             for (AstEnumItem* itemp = adtypep->itemsp(); itemp;
                                  itemp = VN_CAST(itemp->nextp(), EnumItem)) {
                                 puts(itemp->nameProtect());
-                                puts(" = ");
+                                puts(" bender1= ");
                                 iterateAndNextNull(itemp->valuep());
                                 if (VN_IS(itemp->nextp(), EnumItem)) puts(",");
                                 puts("\n");
@@ -201,7 +201,7 @@ public:
                         } else {
                             // enum
                             puts(varp->isQuad() ? "enum _QData" : "enum _IData");
-                            puts("" + varp->nameProtect() + " { " + varp->nameProtect() + " = ");
+                            puts("" + varp->nameProtect() + " { " + varp->nameProtect() + " bender2= ");
                             iterateAndNextNull(varp->valuep());
                             puts("};\n");
                             // var
@@ -286,6 +286,7 @@ public:
     virtual void visit(AstNodeAssign* nodep) override {
         bool paren = true;
         bool decind = false;
+        bool useChangelist = true;
         if (AstSel* selp = VN_CAST(nodep->lhsp(), Sel)) {
             if (selp->widthMin() == 1) {
                 putbs("VL_ASSIGNBIT_");
@@ -314,7 +315,7 @@ public:
             }
         } else if (AstGetcRefN* selp = VN_CAST(nodep->lhsp(), GetcRefN)) {
             iterateAndNextNull(selp->lhsp());
-            puts(" = ");
+            puts(" bender3= ");
             putbs("VL_PUTC_N(");
             iterateAndNextNull(selp->lhsp());
             puts(", ");
@@ -352,16 +353,29 @@ public:
             puts(", ");
         } else {
             paren = false;
+            AstVarRef* lhs_avr = VN_CAST(nodep->lhsp(), VarRef);
+            useChangelist = (lhs_avr == nullptr || ! lhs_avr->hiernameToProt().empty());
+            if (useChangelist) {
+                puts("updateChangelist(");
+            } else {
+                useChangelist = false;
+            }
+
             iterateAndNextNull(nodep->lhsp());
             puts(" ");
             ofp()->blockInc();
             decind = true;
             if (!VN_IS(nodep->rhsp(), Const)) ofp()->putBreak();
-            puts("= ");
+
+            if (! useChangelist)
+                puts(" = ");
+            else
+                puts(", ");
         }
         iterateAndNextNull(nodep->rhsp());
         if (paren) puts(")");
         if (decind) ofp()->blockDec();
+        if (useChangelist) puts(")");
         if (!m_suppressSemi) puts(";\n");
     }
     virtual void visit(AstAlwaysPublic*) override {}
@@ -1563,11 +1577,19 @@ class EmitCImp final : EmitCStmts {
         iterateAndNextNull(nodep->stmtsp());
         if (!m_blkChangeDetVec.empty()) emitChangeDet();
 
-        if (nodep->finalsp()) putsDecoration("// Final\n");
-        iterateAndNextNull(nodep->finalsp());
-        //
+        if (nodep->finalsp()) {
+          putsDecoration("// Final\n");
+        }
 
-        if (!m_blkChangeDetVec.empty()) puts("return __req;\n");
+        iterateAndNextNull(nodep->finalsp());
+
+        if (nodep->finalsp()) {
+            puts("flushChangelists();\n");
+        }
+
+        if (!m_blkChangeDetVec.empty()) {
+          puts("return __req;\n");
+        }
 
         // puts("__Vm_activity = true;\n");
         puts("}\n");
@@ -2603,7 +2625,7 @@ void EmitCImp::emitSavableImp(AstNodeModule* modp) {
                             UASSERT_OBJ(arrayp->hi() >= arrayp->lo(), varp,
                                         "Should have swapped msb & lsb earlier.");
                             string ivar = string("__Vi") + cvtToStr(vecnum);
-                            puts("for (int __Vi" + cvtToStr(vecnum) + "=" + cvtToStr(0));
+                            puts("for (int __Vi" + cvtToStr(vecnum) + "xbender3=" + cvtToStr(0));
                             puts("; " + ivar + "<" + cvtToStr(arrayp->elementsConst()));
                             puts("; ++" + ivar + ") {\n");
                             elementp = arrayp->subDTypep()->skipRefp();
@@ -2615,7 +2637,7 @@ void EmitCImp::emitSavableImp(AstNodeModule* modp) {
                             && !(basicp && basicp->keyword() == AstBasicDTypeKwd::STRING)) {
                             int vecnum = vects++;
                             string ivar = string("__Vi") + cvtToStr(vecnum);
-                            puts("for (int __Vi" + cvtToStr(vecnum) + "=" + cvtToStr(0));
+                            puts("for (int __Vi" + cvtToStr(vecnum) + "xbender4=" + cvtToStr(0));
                             puts("; " + ivar + "<" + cvtToStr(elementp->widthWords()));
                             puts("; ++" + ivar + ") {\n");
                         }
@@ -2690,7 +2712,7 @@ void EmitCImp::emitSensitives() {
                         UASSERT_OBJ(arrayp->hi() >= arrayp->lo(), varp,
                                     "Should have swapped msb & lsb earlier.");
                         string ivar = string("__Vi") + cvtToStr(vecnum);
-                        puts("for (int __Vi" + cvtToStr(vecnum) + "=" + cvtToStr(arrayp->lo()));
+                        puts("for (int __Vi" + cvtToStr(vecnum) + "xbender5=" + cvtToStr(arrayp->lo()));
                         puts("; " + ivar + "<=" + cvtToStr(arrayp->hi()));
                         puts("; ++" + ivar + ") {\n");
                     }
@@ -2739,6 +2761,11 @@ void EmitCImp::emitWrapEval(AstNodeModule* modp) {
          + "::eval\\n\"); );\n");
     puts(EmitCBaseVisitor::symClassVar() + " = this->__VlSymsp;  // Setup global symbol table\n");
     puts(EmitCBaseVisitor::symTopAssign() + "\n");
+    puts("verilator_char_cl_curr = &verilator_char_cl[0];\n");
+    puts("verilator_short_cl_curr = &verilator_short_cl[0];\n");
+    puts("verilator_int_cl_curr = &verilator_int_cl[0];\n");
+    puts("verilator_long_cl_curr = &verilator_long_cl[0];\n");
+
     puts("#ifdef VL_DEBUG\n");
     putsDecoration("// Debug assertions\n");
     puts(protect("_eval_debug_assertions") + "();\n");
@@ -2824,8 +2851,9 @@ void EmitCImp::emitWrapEval(AstNodeModule* modp) {
          + EmitCBaseVisitor::symClassVar() + ") {\n");
     puts("vlSymsp->__Vm_didInit = true;\n");
     puts(protect("_eval_initial") + "(vlSymsp);\n");
+    puts("flushChangelists();\n");
     if (v3Global.opt.trace()) puts("vlSymsp->__Vm_activity = true;\n");
-    emitSettleLoop((protect("_eval_settle") + "(vlSymsp);\n"  //
+    emitSettleLoop((protect("_eval_settle") + "(vlSymsp); flushChangelists();\n"  //
                     + protect("_eval") + "(vlSymsp);"),
                    true);
     puts("}\n");
@@ -3658,7 +3686,7 @@ class EmitCTrace final : EmitCStmts {
                     int nvals = 0;
                     puts("{\n");
                     puts("const char* " + protect("__VenumItemNames") + "[]\n");
-                    puts("= {");
+                    puts("xbender6= {");
                     for (AstEnumItem* itemp = enump->itemsp(); itemp;
                          itemp = VN_CAST(itemp->nextp(), EnumItem)) {
                         if (++nvals > 1) puts(", ");
@@ -3667,7 +3695,7 @@ class EmitCTrace final : EmitCStmts {
                     puts("};\n");
                     nvals = 0;
                     puts("const char* " + protect("__VenumItemValues") + "[]\n");
-                    puts("= {");
+                    puts("xbender7= {");
                     for (AstEnumItem* itemp = enump->itemsp(); itemp;
                          itemp = VN_CAST(itemp->nextp(), EnumItem)) {
                         AstConst* constp = VN_CAST(itemp->valuep(), Const);
@@ -3832,6 +3860,7 @@ class EmitCTrace final : EmitCStmts {
             if (nodep->finalsp()) {
                 putsDecoration("// Final\n");
                 iterateAndNextNull(nodep->finalsp());
+                puts("flushChangelists();\n");
             }
             puts("}\n");
         }
